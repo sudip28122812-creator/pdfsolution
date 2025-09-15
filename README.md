@@ -66,6 +66,7 @@
             max-width: 600px;
             cursor: pointer;
             transition: all 0.3s;
+            position: relative;
         }
         
         .upload-area:hover {
@@ -82,6 +83,16 @@
         .upload-area h3 {
             margin-bottom: 10px;
             color: #2c3e50;
+        }
+        
+        #file-input {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            opacity: 0;
+            cursor: pointer;
         }
         
         .btn {
@@ -237,6 +248,34 @@
             transform: translateY(-3px);
         }
         
+        .upload-status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            background: #f8f9fa;
+            display: none;
+        }
+        
+        .upload-success {
+            background: #d4edda;
+            color: #155724;
+            display: block;
+        }
+        
+        .upload-error {
+            background: #f8d7da;
+            color: #721c24;
+            display: block;
+        }
+        
+        .file-info {
+            margin-top: 15px;
+            padding: 10px;
+            background: #e9ecef;
+            border-radius: 5px;
+            display: none;
+        }
+        
         footer {
             text-align: center;
             padding: 20px;
@@ -275,11 +314,21 @@
             <h2>Upload Your PDF File</h2>
             <p>Get started by uploading your PDF document</p>
             
-            <div class="upload-area">
+            <div class="upload-area" id="drop-area">
                 <i class="fas fa-file-pdf"></i>
                 <h3>Drag & Drop your PDF here</h3>
                 <p>or</p>
-                <button class="btn"><i class="fas fa-upload"></i> Browse Files</button>
+                <button class="btn" id="browse-btn"><i class="fas fa-upload"></i> Browse Files</button>
+                <input type="file" id="file-input" accept=".pdf" />
+            </div>
+            
+            <div class="upload-status" id="upload-status"></div>
+            
+            <div class="file-info" id="file-info">
+                <h4>Uploaded File:</h4>
+                <p id="file-name"></p>
+                <p id="file-size"></p>
+                <button class="btn" id="remove-file"><i class="fas fa-trash"></i> Remove File</button>
             </div>
         </section>
         
@@ -481,31 +530,123 @@
     </div>
 
     <script>
-        // Simple JavaScript for file upload interaction
         document.addEventListener('DOMContentLoaded', function() {
-            const uploadArea = document.querySelector('.upload-area');
-            const uploadBtn = document.querySelector('.btn');
+            const dropArea = document.getElementById('drop-area');
+            const fileInput = document.getElementById('file-input');
+            const browseBtn = document.getElementById('browse-btn');
+            const uploadStatus = document.getElementById('upload-status');
+            const fileInfo = document.getElementById('file-info');
+            const fileName = document.getElementById('file-name');
+            const fileSize = document.getElementById('file-size');
+            const removeFileBtn = document.getElementById('remove-file');
             const donateBtn = document.querySelector('.btn-donate');
             
-            uploadArea.addEventListener('click', function() {
-                alert('File upload dialog would open here');
-            });
-            
-            uploadBtn.addEventListener('click', function(e) {
+            // Open file dialog when clicking the browse button
+            browseBtn.addEventListener('click', function(e) {
                 e.stopPropagation();
-                alert('File upload dialog would open here');
+                fileInput.click();
             });
             
+            // Open file dialog when clicking the drop area
+            dropArea.addEventListener('click', function(e) {
+                if (e.target === dropArea) {
+                    fileInput.click();
+                }
+            });
+            
+            // Handle file selection
+            fileInput.addEventListener('change', function() {
+                if (this.files.length > 0) {
+                    handleFile(this.files[0]);
+                }
+            });
+            
+            // Drag and drop functionality
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropArea.addEventListener(eventName, preventDefaults, false);
+            });
+            
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropArea.addEventListener(eventName, highlight, false);
+            });
+            
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropArea.addEventListener(eventName, unhighlight, false);
+            });
+            
+            function highlight() {
+                dropArea.style.backgroundColor = '#e3f2fd';
+                dropArea.style.borderColor = '#2196f3';
+            }
+            
+            function unhighlight() {
+                dropArea.style.backgroundColor = '';
+                dropArea.style.borderColor = '#3498db';
+            }
+            
+            dropArea.addEventListener('drop', function(e) {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                if (files.length > 0) {
+                    handleFile(files[0]);
+                }
+            });
+            
+            // Handle the uploaded file
+            function handleFile(file) {
+                // Check if file is PDF
+                if (file.type !== 'application/pdf') {
+                    uploadStatus.textContent = 'Error: Please upload a PDF file';
+                    uploadStatus.className = 'upload-status upload-error';
+                    return;
+                }
+                
+                // Check file size (max 50MB)
+                if (file.size > 50 * 1024 * 1024) {
+                    uploadStatus.textContent = 'Error: File size exceeds 50MB limit';
+                    uploadStatus.className = 'upload-status upload-error';
+                    return;
+                }
+                
+                // Display success message
+                uploadStatus.textContent = 'File uploaded successfully!';
+                uploadStatus.className = 'upload-status upload-success';
+                
+                // Display file information
+                fileName.textContent = `Name: ${file.name}`;
+                fileSize.textContent = `Size: ${formatFileSize(file.size)}`;
+                fileInfo.style.display = 'block';
+                
+                // You would typically send the file to a server here
+                // For this example, we'll just simulate processing
+                console.log('File uploaded:', file.name);
+            }
+            
+            // Format file size
+            function formatFileSize(bytes) {
+                if (bytes === 0) return '0 Bytes';
+                const k = 1024;
+                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            }
+            
+            // Remove uploaded file
+            removeFileBtn.addEventListener('click', function() {
+                fileInput.value = '';
+                uploadStatus.textContent = '';
+                uploadStatus.className = 'upload-status';
+                fileInfo.style.display = 'none';
+            });
+            
+            // Donation button
             donateBtn.addEventListener('click', function() {
-                alert('Donation options would be shown here');
-            });
-            
-            // Add hover effects to tool items
-            const toolItems = document.querySelectorAll('.tool-item');
-            toolItems.forEach(item => {
-                item.addEventListener('click', function() {
-                    alert(`"${this.textContent.trim()}" tool would open here`);
-                });
+                alert('Thank you for your interest in supporting us! Donation options would be shown here.');
             });
             
             // Donation options
@@ -520,6 +661,21 @@
                     } else {
                         alert(`Thank you for donating ${this.textContent}!`);
                     }
+                });
+            });
+            
+            // Tool items functionality
+            const toolItems = document.querySelectorAll('.tool-item');
+            toolItems.forEach(item => {
+                item.addEventListener('click', function() {
+                    // Check if a file is uploaded
+                    if (!fileInput.files.length) {
+                        uploadStatus.textContent = 'Please upload a PDF file first';
+                        uploadStatus.className = 'upload-status upload-error';
+                        return;
+                    }
+                    
+                    alert(`"${this.textContent.trim()}" tool would process your PDF`);
                 });
             });
         });
